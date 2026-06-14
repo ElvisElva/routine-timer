@@ -3,13 +3,58 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type RoutineStep = {
   name: string;
   durationSeconds: number | null;
+  guidance?: GuidedInterval[];
+};
+
+type GuidedInterval = {
+  name: string;
+  cue: string;
+  durationSeconds: number;
 };
 
 type TimerStatus = "idle" | "running" | "paused" | "manual" | "complete";
 
+const FULL_BODY_CARS_GUIDANCE: GuidedInterval[] = [
+  {
+    name: "Neck circles",
+    cue: "Slow circle each way. Keep your shoulders down.",
+    durationSeconds: 10,
+  },
+  {
+    name: "Shoulder circles",
+    cue: "Make big controlled circles. Switch direction halfway.",
+    durationSeconds: 15,
+  },
+  {
+    name: "Elbows + wrists",
+    cue: "Circle your elbows, then make full wrist circles.",
+    durationSeconds: 10,
+  },
+  {
+    name: "Spine circles",
+    cue: "Round, side-bend, extend, and circle slowly.",
+    durationSeconds: 15,
+  },
+  {
+    name: "Hip rotations",
+    cue: "Lift one knee, open it out, rotate back. Switch sides halfway.",
+    durationSeconds: 20,
+  },
+  {
+    name: "Knee rotations",
+    cue: "Lift one foot and circle the lower leg. Switch sides halfway.",
+    durationSeconds: 10,
+  },
+  {
+    name: "Ankle circles",
+    cue: "Make slow full circles. Switch sides halfway.",
+    durationSeconds: 10,
+  },
+];
+
 const ROUTINE_STEPS: RoutineStep[] = [
   { name: "Breathing + light", durationSeconds: 60 },
-  { name: "Full-body CARs", durationSeconds: 90 },
+  { name: "Full-body CARs", durationSeconds: 90, guidance: FULL_BODY_CARS_GUIDANCE },
   { name: "Lymph jumps", durationSeconds: 45 },
   { name: "Trunk twist", durationSeconds: 30 },
   { name: "Body waves", durationSeconds: 30 },
@@ -33,6 +78,31 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
+function getGuidedInterval(guidance: GuidedInterval[], totalSeconds: number, secondsRemaining: number) {
+  const elapsedSeconds = totalSeconds - secondsRemaining;
+  let intervalEnd = 0;
+
+  for (let index = 0; index < guidance.length; index += 1) {
+    intervalEnd += guidance[index].durationSeconds;
+
+    if (elapsedSeconds < intervalEnd) {
+      return {
+        interval: guidance[index],
+        index,
+        nextInterval: guidance[index + 1],
+        secondsRemaining: intervalEnd - elapsedSeconds,
+      };
+    }
+  }
+
+  return {
+    interval: guidance[guidance.length - 1],
+    index: guidance.length - 1,
+    nextInterval: undefined,
+    secondsRemaining: 1,
+  };
+}
+
 function App() {
   const [status, setStatus] = useState<TimerStatus>("idle");
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -41,12 +111,17 @@ function App() {
   const endTimeRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const stepCompletedRef = useRef(false);
+  const guidedIntervalIndexRef = useRef(0);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const wakeLockRequestPendingRef = useRef(false);
   const shouldKeepScreenAwakeRef = useRef(false);
 
   const currentStep = ROUTINE_STEPS[currentStepIndex];
   const nextStep = ROUTINE_STEPS[currentStepIndex + 1];
+  const guidedInterval =
+    currentStep.guidance && currentStep.durationSeconds !== null
+      ? getGuidedInterval(currentStep.guidance, currentStep.durationSeconds, secondsRemaining)
+      : null;
 
   const unlockAudio = useCallback(() => {
     const AudioContextClass =
@@ -141,6 +216,33 @@ function App() {
     }
   }, []);
 
+  const signalGuideChange = useCallback(() => {
+    const audioContext = audioContextRef.current;
+    setStepSignal((signal) => signal + 1);
+
+    if (audioContext) {
+      void audioContext.resume().then(() => {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const now = audioContext.currentTime;
+
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(660, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.24, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + 0.18);
+      });
+    }
+
+    if ("vibrate" in navigator) {
+      navigator.vibrate(100);
+    }
+  }, []);
+
   const goToStep = useCallback((index: number) => {
     if (index >= ROUTINE_STEPS.length) {
       setStatus("complete");
@@ -149,6 +251,7 @@ function App() {
 
     const step = ROUTINE_STEPS[index];
     stepCompletedRef.current = false;
+    guidedIntervalIndexRef.current = 0;
     setCurrentStepIndex(index);
 
     if (step.durationSeconds === null) {
@@ -222,6 +325,19 @@ function App() {
     const intervalId = window.setInterval(updateTimer, 200);
     return () => window.clearInterval(intervalId);
   }, [advanceStep, signalStepComplete, status]);
+
+  useEffect(() => {
+    if (
+      status !== "running" ||
+      !guidedInterval ||
+      guidedInterval.index <= guidedIntervalIndexRef.current
+    ) {
+      return;
+    }
+
+    guidedIntervalIndexRef.current = guidedInterval.index;
+    signalGuideChange();
+  }, [guidedInterval, signalGuideChange, status]);
 
   const startRoutine = () => {
     unlockAudio();
@@ -307,9 +423,28 @@ function App() {
         </header>
 
         <div className="step-content" aria-live="polite">
-          <h1>{currentStep.name}</h1>
+          <h1 className={guidedInterval ? "guided-step-title" : undefined}>{currentStep.name}</h1>
 
-          {isManualStep ? (
+          {guidedInterval ? (
+            <div className="guided-interval">
+              <p className="guided-label">
+                Now · {guidedInterval.index + 1} of {currentStep.guidance?.length}
+              </p>
+              <h2>{guidedInterval.interval.name}</h2>
+              <p className="guided-cue">{guidedInterval.interval.cue}</p>
+              <p
+                className="countdown guided-countdown"
+                aria-label={`${guidedInterval.secondsRemaining} seconds remaining for ${guidedInterval.interval.name}`}
+              >
+                {formatTime(guidedInterval.secondsRemaining)}
+              </p>
+              <p className="guided-total">{formatTime(secondsRemaining)} total CARs time left</p>
+              <div className="guided-next">
+                <span>Next movement</span>
+                <strong>{guidedInterval.nextInterval?.name ?? "Lymph jumps"}</strong>
+              </div>
+            </div>
+          ) : isManualStep ? (
             <p className="manual-note">Complete at your own pace</p>
           ) : (
             <p className="countdown" aria-label={`${secondsRemaining} seconds remaining`}>
@@ -318,7 +453,7 @@ function App() {
           )}
 
           <div className="next-step">
-            <span>Next</span>
+            <span>{guidedInterval ? "After CARs" : "Next"}</span>
             <strong>{nextStep?.name ?? "Finish"}</strong>
           </div>
         </div>

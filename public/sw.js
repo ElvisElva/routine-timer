@@ -1,4 +1,4 @@
-const CACHE_NAME = "morning-routine-timer-v3";
+const CACHE_NAME = "morning-routine-timer-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -42,6 +42,22 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse.ok) {
+            const responseToCache = networkResponse.clone();
+            void caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", responseToCache));
+          }
+
+          return networkResponse;
+        })
+        .catch(() => caches.match("./index.html")),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -57,13 +73,7 @@ self.addEventListener("fetch", (event) => {
 
           return networkResponse;
         })
-        .catch(() => {
-          if (event.request.mode === "navigate") {
-            return caches.match("./index.html");
-          }
-
-          return Response.error();
-        });
+        .catch(() => Response.error());
     }),
   );
 });
