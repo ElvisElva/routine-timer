@@ -26,6 +26,7 @@ button {
 }
 
 .app-shell {
+  position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   padding:
@@ -33,6 +34,29 @@ button {
     max(20px, env(safe-area-inset-right))
     max(22px, env(safe-area-inset-bottom))
     max(20px, env(safe-area-inset-left));
+}
+
+.step-change-flash {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  pointer-events: none;
+  background: #edb964;
+  animation: step-change-pulse 650ms ease-out both;
+}
+
+@keyframes step-change-pulse {
+  0% {
+    opacity: 0;
+  }
+
+  18% {
+    opacity: 0.3;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
 
 .screen {
@@ -291,5 +315,9 @@ h1 {
   .button,
   .progress-track span {
     transition: none;
+  }
+
+  .step-change-flash {
+    animation-duration: 180ms;
   }
 }

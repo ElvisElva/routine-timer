@@ -37,6 +37,7 @@ function App() {
   const [status, setStatus] = useState<TimerStatus>("idle");
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [secondsRemaining, setSecondsRemaining] = useState(ROUTINE_STEPS[0].durationSeconds ?? 0);
+  const [stepSignal, setStepSignal] = useState(0);
   const endTimeRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const stepCompletedRef = useRef(false);
@@ -111,27 +112,32 @@ function App() {
 
   const signalStepComplete = useCallback(() => {
     const audioContext = audioContextRef.current;
+    setStepSignal((signal) => signal + 1);
 
     if (audioContext) {
       void audioContext.resume().then(() => {
-        const oscillator = audioContext.createOscillator();
-        const gain = audioContext.createGain();
         const now = audioContext.currentTime;
 
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(880, now);
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(0.24, now + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-        oscillator.connect(gain);
-        gain.connect(audioContext.destination);
-        oscillator.start(now);
-        oscillator.stop(now + 0.2);
+        [0, 0.22, 0.44].forEach((delay, index) => {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          const startTime = now + delay;
+
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(index === 2 ? 1046 : 880, startTime);
+          gain.gain.setValueAtTime(0.0001, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.34, startTime + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.16);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(startTime);
+          oscillator.stop(startTime + 0.18);
+        });
       });
     }
 
     if ("vibrate" in navigator) {
-      navigator.vibrate(120);
+      navigator.vibrate([140, 70, 140]);
     }
   }, []);
 
@@ -283,6 +289,7 @@ function App() {
 
   return (
     <main className="app-shell">
+      {stepSignal > 0 && <div key={stepSignal} className="step-change-flash" aria-hidden="true" />}
       <section className="screen timer-screen">
         <header className="step-header">
           <p className="progress">

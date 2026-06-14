@@ -1,4 +1,4 @@
-const CACHE_NAME = "morning-routine-timer-v2";
+const CACHE_NAME = "morning-routine-timer-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
