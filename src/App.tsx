@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type RoutineStep = {
   name: string;
   durationSeconds: number | null;
+  detail?: string;
   guidance?: GuidedInterval[];
 };
 
@@ -17,7 +18,11 @@ type TimerStatus = "idle" | "running" | "paused" | "manual" | "complete";
 const ROUTINE_STEPS: RoutineStep[] = [
   { name: "Breathing", durationSeconds: 45 },
   { name: "Shake Body", durationSeconds: 60 },
-  { name: "Stretch Flow", durationSeconds: 90 },
+  {
+    name: "Stretch Flow",
+    durationSeconds: 90,
+    detail: "Deep squat - Reach up - Touch toes - Downward dog - Stand up again",
+  },
   { name: "Happy Moment", durationSeconds: 60 },
   { name: "Easy Push-ups", durationSeconds: 30 },
 ];
@@ -376,6 +381,7 @@ function App() {
 
         <div className="step-content" aria-live="polite">
           <h1 className={guidedInterval ? "guided-step-title" : undefined}>{currentStep.name}</h1>
+          {currentStep.detail && <p className="guided-cue">{currentStep.detail}</p>}
 
           {guidedInterval ? (
             <div className="guided-interval">
