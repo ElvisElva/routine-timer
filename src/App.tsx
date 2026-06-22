@@ -14,63 +14,15 @@ type GuidedInterval = {
 
 type TimerStatus = "idle" | "running" | "paused" | "manual" | "complete";
 
-const FULL_BODY_CARS_GUIDANCE: GuidedInterval[] = [
-  {
-    name: "Neck circles",
-    cue: "Slow circle each way. Keep your shoulders down.",
-    durationSeconds: 10,
-  },
-  {
-    name: "Shoulder circles",
-    cue: "Make big controlled circles. Switch direction halfway.",
-    durationSeconds: 15,
-  },
-  {
-    name: "Elbows + wrists",
-    cue: "Circle your elbows, then make full wrist circles.",
-    durationSeconds: 10,
-  },
-  {
-    name: "Spine circles",
-    cue: "Round, side-bend, extend, and circle slowly.",
-    durationSeconds: 15,
-  },
-  {
-    name: "Hip rotations",
-    cue: "Lift one knee, open it out, rotate back. Switch sides halfway.",
-    durationSeconds: 20,
-  },
-  {
-    name: "Knee rotations",
-    cue: "Lift one foot and circle the lower leg. Switch sides halfway.",
-    durationSeconds: 10,
-  },
-  {
-    name: "Ankle circles",
-    cue: "Make slow full circles. Switch sides halfway.",
-    durationSeconds: 10,
-  },
-];
-
 const ROUTINE_STEPS: RoutineStep[] = [
-  { name: "Breathing + light", durationSeconds: 60 },
-  { name: "Full-body CARs", durationSeconds: 90, guidance: FULL_BODY_CARS_GUIDANCE },
-  { name: "Lymph jumps", durationSeconds: 45 },
-  { name: "Trunk twist", durationSeconds: 30 },
-  { name: "Body waves", durationSeconds: 30 },
-  { name: "Deep squat hold", durationSeconds: 45 },
-  { name: "Push-up to downward dog", durationSeconds: 45 },
-  { name: "World's greatest stretch - left side", durationSeconds: 30 },
-  { name: "World's greatest stretch - right side", durationSeconds: 30 },
-  { name: "Single-leg balance - 30 seconds each side", durationSeconds: 60 },
-  { name: "Shadow-box flow (Teep → Jab → cross → hook → hook)", durationSeconds: 60 },
-  { name: "20 push-ups", durationSeconds: null },
+  { name: "Breathing", durationSeconds: 45 },
+  { name: "Shake Body", durationSeconds: 60 },
+  { name: "Stretch Flow", durationSeconds: 90 },
+  { name: "Happy Moment", durationSeconds: 60 },
+  { name: "Easy Push-ups", durationSeconds: 30 },
 ];
 
-const FINAL_MESSAGE = [
-  "Today, my main job is follow-through.",
-  "If I drift, I return to the next small action.",
-];
+const FINAL_MESSAGE = ["One step. One action at a time. Be present."];
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -441,7 +393,7 @@ function App() {
               <p className="guided-total">{formatTime(secondsRemaining)} total CARs time left</p>
               <div className="guided-next">
                 <span>Next movement</span>
-                <strong>{guidedInterval.nextInterval?.name ?? "Lymph jumps"}</strong>
+                <strong>{guidedInterval.nextInterval?.name ?? nextStep?.name ?? "Finish"}</strong>
               </div>
             </div>
           ) : isManualStep ? (
